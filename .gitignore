@@ -1,0 +1,15 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!terraform.tfvars.example
+.env
+.env.*
+# Commit .terraform.lock.hcl to retain the verified provider version/checksums.
+
+__pycache__/
+*.pyc
