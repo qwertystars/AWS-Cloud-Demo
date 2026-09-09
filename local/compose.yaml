@@ -1,0 +1,36 @@
+name: aws-class-demo-local
+x-web: &web
+  image: public.ecr.aws/docker/library/httpd:2.4
+  restart: unless-stopped
+  command:
+    - /bin/sh
+    - -ec
+    - |
+      printf '<h1>Local ECS Load Balancing Rehearsal</h1>\n<h2>Served by: %s</h2>\n' "$$(hostname)" > /usr/local/apache2/htdocs/index.html
+      exec httpd-foreground
+  healthcheck:
+    test: ["CMD", "bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/80; printf 'GET / HTTP/1.0\\r\\n\\r\\n' >&3; read -r line <&3; [[ $$line == *' 200 '* ]]"]
+    interval: 5s
+    timeout: 3s
+    retries: 6
+    start_period: 10s
+  cpus: 0.25
+  mem_limit: 128m
+services:
+  app1: *web
+  app2: *web
+  lb:
+    image: haproxy:3.2-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LOCAL_PORT:-8080}:80"
+      - "127.0.0.1:${LOCAL_STATS_PORT:-8404}:8404"
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      app1:
+        condition: service_healthy
+      app2:
+        condition: service_healthy
+    cpus: 0.25
+    mem_limit: 128m
