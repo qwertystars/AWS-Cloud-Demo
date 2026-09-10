@@ -3,7 +3,7 @@ set -euo pipefail
 source "$(dirname -- "${BASH_SOURCE[0]}")/scripts/common.sh"
 [[ $# == 0 ]] || { echo 'Usage: ./status.sh' >&2; exit 2; }
 load_outputs
-printf '\nCluster: %s\nService: %s\nALB DNS: %s\nDemo URL: %s\n\n' "$CLUSTER" "$SERVICE" "$(terraform output -raw load_balancer_dns)" "$URL"
+printf '\nCluster: %s\nService: %s\nALB DNS: %s\nDemo URL: %s\n\n' "$CLUSTER" "$SERVICE" "$(terraform_output load_balancer_dns)" "$URL"
 aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
   --query 'services[].{Service:serviceName,Status:status,Desired:desiredCount,Running:runningCount,Pending:pendingCount}' --output table
 read -r -a tasks <<< "$(running_tasks)"

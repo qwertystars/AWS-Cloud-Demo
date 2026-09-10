@@ -7,10 +7,11 @@ case "${1:-}" in
   --yes) [[ $# == 1 ]] || exit 2; yes=true ;;
   *) echo 'Usage: ./destroy.sh [--yes]' >&2; exit 2 ;;
 esac
-require_commands terraform aws python3
+require_commands terraform aws
+require_python
 trap 'echo "WARNING: cleanup is incomplete or could not be verified. Resources may still incur charges. Keep the state, resolve the error, and rerun ./destroy.sh." >&2' ERR
 terraform init -input=false
-REGION=$(terraform output -raw region 2>/dev/null || configured_region)
+REGION=$(terraform_output region 2>/dev/null || configured_region)
 export AWS_DEFAULT_REGION="$REGION" AWS_REGION="$REGION"
 identity
 configured=$(configured_region)
@@ -27,7 +28,7 @@ if [[ "$yes" == false ]]; then
 fi
 # Explicit confirmation above, or --yes, authorizes Terraform auto-approval.
 terraform destroy -input=false -auto-approve
-terraform state pull | python3 -c '
+terraform state pull | "$PYTHON" -c '
 import json, sys
 state = json.load(sys.stdin)
 remaining = [r["type"] + "." + r["name"] for r in state.get("resources", [])

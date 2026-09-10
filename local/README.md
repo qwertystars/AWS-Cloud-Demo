@@ -1,8 +1,8 @@
 # Local Docker classroom demo
 
-Rehearse without AWS credentials or AWS charges. Requires Docker Engine or Docker Desktop running, Docker Compose v2.20+ (or v5), Bash, curl, and standard Unix tools. Initial setup downloads images; keep them cached for class.
+Rehearse without AWS credentials or AWS charges. Requires Docker Engine or Docker Desktop running, Docker Compose v2.20+ (or v5), curl, and either Bash with the standard Unix tools or PowerShell 5.1+. Initial setup downloads images; keep them cached for class.
 
-From the repository root:
+From the repository root, using Bash on Linux, macOS, Git Bash, or WSL:
 
 ```bash
 ./local/demo.sh setup
@@ -11,6 +11,17 @@ From the repository root:
 ./local/demo.sh self-heal
 ./local/demo.sh failover       # optional stop-and-replace demonstration
 ./local/demo.sh destroy
+```
+
+Or the identical PowerShell version, which is the simplest route on Windows:
+
+```powershell
+.\local\demo.ps1 setup
+.\local\demo.ps1 status
+.\local\demo.ps1 demo
+.\local\demo.ps1 self-heal
+.\local\demo.ps1 failover      # optional stop-and-replace demonstration
+.\local\demo.ps1 destroy
 ```
 
 Open **http://127.0.0.1:8080** for the application and **http://127.0.0.1:8404** for the live backend health dashboard. Twenty fresh HTTP connections show container hostnames and a summary of unique backends. Request order is not guaranteed.
@@ -35,6 +46,11 @@ If ports are occupied, use the same overrides for every command:
 ```bash
 export LOCAL_PORT=8088 LOCAL_STATS_PORT=8408
 ./local/demo.sh setup
+```
+
+```powershell
+$env:LOCAL_PORT = '8088'; $env:LOCAL_STATS_PORT = '8408'
+.\local\demo.ps1 setup
 ```
 
 For troubleshooting:
