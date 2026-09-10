@@ -115,6 +115,33 @@ function Get-BackendsUp {
   return $count
 }
 
+function Get-BackendState {
+  param([Parameter(Mandatory)][string]$Server)
+  $csv = Invoke-NativeCommand -Command (Get-CurlPath) -Capture -Quiet -AllowFailure `
+    -Arguments @('-fsS', '--max-time', '3', "$STATS/;csv")
+  if ($LASTEXITCODE -ne 0) { return '' }
+  foreach ($line in ($csv -split "`n")) {
+    $fields = $line -split ','
+    if ($fields.Count -ge 18 -and $fields[0] -eq 'apps' -and $fields[1] -eq $Server) {
+      return $fields[17]
+    }
+  }
+  return ''
+}
+
+function Wait-LocalDown {
+  param([Parameter(Mandatory)][string]$Server)
+  for ($i = 0; $i -lt 40; $i++) {
+    $state = Get-BackendState $Server
+    if ($state -match '^(DOWN|MAINT|NOLB)') {
+      Write-Output ('Load balancer marked {0}: {1}' -f $Server, $state)
+      return
+    }
+    Start-Sleep -Seconds 1
+  }
+  Fail "Timed out waiting for the load balancer to mark $Server down."
+}
+
 function Wait-LocalReady {
   for ($i = 0; $i -lt 60; $i++) {
     if ((Get-BackendsUp) -eq 2) {
@@ -209,7 +236,7 @@ switch ($command) {
     Confirm-Action "Stop and recreate app1 ($old)?" $flag
     Invoke-Compose @('stop', 'app1')
     Write-Output 'app1 stopped; waiting for the load balancer to mark it down.'
-    Start-Sleep -Seconds 5
+    Wait-LocalDown 'app1'
     Invoke-Requests
     Write-Output 'Compose does not replace stopped containers automatically. Recreating app1 explicitly...'
     Invoke-Compose @('up', '-d', '--no-deps', '--force-recreate', '--wait', '--wait-timeout', '120', 'app1')

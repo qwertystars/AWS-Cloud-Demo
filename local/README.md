@@ -31,11 +31,11 @@ Browser -> HAProxy :8080 -> app1 (Apache :80)
                         -> app2 (Apache :80)
 ```
 
-Only HAProxy publishes ports, bound to localhost. The Apache containers are accessible inside the Compose network. Each writes its actual hostname into the page at startup. HAProxy actively checks HTTP health and re-resolves Docker DNS when a container is replaced. The three containers have modest CPU/memory limits. No persistent volumes are created.
+Only HAProxy publishes ports, bound to localhost. The Apache containers are accessible inside the Compose network. Each writes its actual hostname into the page at startup. HAProxy actively checks HTTP health and re-resolves Docker DNS when a container is replaced. Because a stopped container drops packets instead of refusing them, health checks need a few seconds to time out; HAProxy retries a request that lands on a backend during that window against the surviving one, so the page keeps loading. The three containers have modest CPU/memory limits. No persistent volumes are created.
 
 `self-heal` asks for confirmation, terminates the Apache process inside app1, and verifies Docker automatically restarts it using `restart: unless-stopped`. It verifies an increased restart count and both healthy backends. This restarts the **same container**: its hostname stays the same.
 
-`failover` asks for confirmation, stops app1, shows requests reaching the surviving backend, explicitly recreates app1, and verifies a new container ID and two healthy backends. A warning that only one backend was observed is expected during the stopped phase. If interrupted, rerun `setup` to restore both backends. Failed setup leaves containers available for inspection; run `destroy` when finished.
+`failover` asks for confirmation, stops app1, waits until the load balancer reports it down, shows requests reaching the surviving backend, explicitly recreates app1, and verifies a new container ID and two healthy backends. A warning that only one backend was observed is expected during the stopped phase. If interrupted, rerun `setup` to restore both backends. Failed setup leaves containers available for inspection; run `destroy` when finished.
 
 Compose is a single-machine rehearsal, not an ECS cluster or an AWS ALB emulator. Unlike ECS Service, Compose does not continuously reconcile a desired replica count or replace manually stopped containers. The automatic process restart and explicit container replacement are separate demonstrations. See [Docker restart policy behavior](https://docs.docker.com/engine/containers/start-containers-automatically/).
 
