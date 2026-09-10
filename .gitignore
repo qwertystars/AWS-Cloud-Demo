@@ -2,6 +2,7 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
+aws-class-demo-plan-*
 crash.log
 crash.*.log
 *.tfvars

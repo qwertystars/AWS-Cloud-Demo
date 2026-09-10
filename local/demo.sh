@@ -18,7 +18,7 @@ confirm() {
 ready() {
   local i count
   for ((i=0; i<60; i++)); do
-    count=$(curl -fsS --max-time 3 "$STATS/;csv" 2>/dev/null | awk -F, '$1=="apps" && ($2=="app1" || $2=="app2") && $18=="UP" {n++} END {print n+0}') || count=0
+    count=$(curl -fsS --max-time 3 "$STATS/;csv" 2>/dev/null | tr -d '\r' | awk -F, '$1=="apps" && ($2=="app1" || $2=="app2") && $18=="UP" {n++} END {print n+0}') || count=0
     if [[ "$count" == 2 ]] && curl -fsS --max-time 3 "$URL" >/dev/null; then
       echo "Ready: two healthy backends. URL: $URL"
       return
@@ -32,7 +32,7 @@ requests() {
   local i body backend identities=''
   for ((i=1; i<=20; i++)); do
     body=$(curl -fsS --http1.1 -H 'Connection: close' --connect-timeout 3 --max-time 5 "$URL")
-    backend=$(printf '%s\n' "$body" | sed -n 's/.*<h2>Served by: \([^<]*\)<\/h2>.*/\1/p')
+    backend=$(printf '%s\n' "$body" | tr -d '\r' | sed -n 's/.*<h2>Served by: \([^<]*\)<\/h2>.*/\1/p')
     [[ -n "$backend" ]] || { echo 'Missing backend identity' >&2; return 1; }
     printf 'Request %02d -> %s\n' "$i" "$backend"
     identities+="$backend"$'\n'
@@ -41,7 +41,7 @@ requests() {
   printf '\nBackend request counts:\n'
   printf '%s' "$identities" | sort | uniq -c
   local count
-  count=$(printf '%s' "$identities" | sort -u | wc -l)
+  count=$(printf '%s' "$identities" | sort -u | wc -l | tr -d ' ')
   printf 'Unique backends observed: %s\n' "$count"
   ((count >= 2)) || echo 'WARNING: only one backend observed; inspect status and retry.'
 }
@@ -56,7 +56,7 @@ case "$1" in
   status)
     compose ps -a
     printf '\nURL: %s\nHealth dashboard: %s\n' "$URL" "$STATS"
-    curl -fsS --max-time 5 "$STATS/;csv" | awk -F, '$1=="apps" && ($2=="app1" || $2=="app2") {print $2 ": " $18}'
+    curl -fsS --max-time 5 "$STATS/;csv" | tr -d '\r' | awk -F, '$1=="apps" && ($2=="app1" || $2=="app2") {print $2 ": " $18}'
     ;;
   demo) requests ;;
   self-heal)

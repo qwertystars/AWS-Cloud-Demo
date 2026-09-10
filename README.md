@@ -16,11 +16,21 @@ A complete [local Docker demo](local/README.md) runs two Apache backends behind 
 ./local/demo.sh destroy
 ```
 
+```powershell
+.\local\demo.ps1 setup
+.\local\demo.ps1 status
+.\local\demo.ps1 demo
+.\local\demo.ps1 self-heal
+.\local\demo.ps1 destroy
+```
+
 Application: **http://127.0.0.1:8080**. Health dashboard: **http://127.0.0.1:8404**. Compose restart behavior differs from ECS replacement; the local guide explains what each demonstration proves. Local cleanup does not destroy any AWS deployment.
 
 ## Prerequisites
 
-- Terraform **1.13–1.16** (validated with 1.15.9), AWS CLI v2, Bash, curl, Python 3, and standard Unix tools. Run scripts in Bash on Linux, macOS, or WSL.
+- Terraform **1.13–1.16** (validated with 1.15.9), AWS CLI v2, and curl. Then pick whichever shell suits the machine; both sets of scripts do the same work, prompt for the same words and print the same output.
+  - **Bash** (`.sh`) on Linux, macOS, or Windows via Git Bash or WSL. It also needs Python 3 and the standard Unix tools. macOS ships Bash 3.2 and BSD utilities, which are supported as-is; its Python 3 comes with the Xcode Command Line Tools (`xcode-select --install`). Git Bash resolves `python`, `python3`, or the `py` launcher.
+  - **PowerShell** (`.ps1`) on Windows PowerShell 5.1, which is included with Windows, or PowerShell 7+ on any platform. These scripts need no Python or Unix tools. Windows 10 1803 and later include the `curl.exe` the demos require; the scripts deliberately bypass PowerShell's `curl` alias for `Invoke-WebRequest`, which would pool connections and hide load balancing.
 - AWS credentials configured, for example with `aws configure` or AWS SSO (`aws sso login --profile classroom`, then `export AWS_PROFILE=classroom`). Never put credentials in this repository.
 - A default VPC with two public subnets in distinct standard Availability Zones, each /27 or larger with at least 12 free IPs and an Internet Gateway default route. Terraform checks effective route tables, including the main table. It does not alter the shared network. Default network ACLs, DNS, and the Internet Gateway must be functional; customized ACL restrictions may prevent traffic or image pulls.
 - Sufficient Fargate vCPU, ALB, and public IPv4 quotas. During deployment ECS may temporarily run up to four tasks at the default desired count.
@@ -37,6 +47,16 @@ AWS account-level ECS/ELB service-linked roles may be created automatically by A
 ./failover-demo.sh
 ./destroy.sh
 ```
+
+```powershell
+.\setup.ps1
+.\status.ps1
+.\demo.ps1
+.\failover-demo.ps1
+.\destroy.ps1
+```
+
+Each `.ps1` mirrors the `.sh` of the same name, so the descriptions below apply to both. On Windows, PowerShell blocks unsigned scripts by default; either run them once per session with `powershell -ExecutionPolicy Bypass -File .\setup.ps1` or allow local scripts for your user with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
 `setup.sh` initializes Terraform, checks formatting and validity, prints the account/region/workspace, and makes a saved plan. It requires typing **apply** before applying that exact plan. It waits for ECS stability, the desired number of healthy targets, and a successful HTTP response. Allow roughly 5–15 minutes; network/image-pull problems can take longer or time out. It prints the final URL, cluster, service, and task counts.
 
@@ -111,6 +131,12 @@ Subnet selection follows [AWS ALB subnet guidance](https://docs.aws.amazon.com/e
 ./destroy.sh --yes
 ```
 
+```powershell
+.\destroy.ps1
+# For an explicitly unattended cleanup:
+.\destroy.ps1 --yes
+```
+
 **Keep `terraform.tfstate` and its backup until cleanup succeeds.** State maps this project to its AWS resources. Never delete state as a way to clean up. The destroy script removes only resources managed by the selected Terraform workspace; it never searches for and deletes unrelated resources. Empty state cannot prove that resources whose state was lost or manually removed are gone. Do not use this directory's state to manage unrelated infrastructure.
 
 A failed setup does not automatically destroy infrastructure. Run `./status.sh` if outputs exist; otherwise use `terraform state list` and the AWS Console to inspect partial deployment. Resolve the issue and rerun `./setup.sh`, or run `./destroy.sh` with the same configuration and credentials. On failed cleanup, retain state, fix credentials/permissions or dependencies, and rerun destroy. Shared VPC/subnets and account-level service-linked roles remain intentionally.
@@ -125,9 +151,6 @@ terraform init -input=false
 terraform validate
 terraform test
 python3 -m unittest discover -s tests -v
-for script in setup.sh status.sh demo.sh failover-demo.sh destroy.sh scripts/common.sh; do
-  bash -n "$script"
-done
 ```
 
-These commands do not create AWS infrastructure. Terraform tests use a mocked AWS provider; Python tests use fake CLI executables to check distribution, readiness, self-healing, and cleanup safety. `terraform plan` reads AWS and needs credentials. `./setup.sh` only creates resources after explicit confirmation. Local validation cannot prove live image pulling, networking, or failover: rehearse the full flow in your authorized account, then destroy it.
+These commands do not create AWS infrastructure. Terraform tests use a mocked AWS provider; Python tests use fake CLI executables to check distribution, readiness, self-healing, and cleanup safety. Every behavior check runs twice, once against the Bash scripts and once against the PowerShell scripts, and both sets are parsed for syntax errors, so the two implementations cannot drift apart. Two of the checks feed the fake tools CRLF output to reproduce what the AWS CLI prints on Windows. A suite whose interpreter is missing is skipped, so the same command works on a machine with only Bash or only PowerShell. `terraform plan` reads AWS and needs credentials. `./setup.sh` only creates resources after explicit confirmation. Local validation cannot prove live image pulling, networking, or failover: rehearse the full flow in your authorized account, then destroy it.

@@ -1,0 +1,4 @@
+# Bash rejects carriage returns and the container-mounted config files are read
+# on Linux, so every text file is checked out with LF even on Windows. Without
+# this, a clone made with core.autocrlf=true breaks the shell scripts.
+* text=auto eol=lf
